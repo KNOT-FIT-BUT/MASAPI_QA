@@ -1,0 +1,10 @@
+windpyutils~=2.0.12
+numpy~=1.21.6
+transformers==4.10.1
+tqdm
+setuptools~=61.2.0
+torch~=1.7.1
+pyserini~=0.17.1
+datasets~=2.4.0
+scalingqa @  git+https://github.com/KNOT-FIT-BUT/scalingQA.git@main#egg=scalingqa
+jsonschema~=4.16.0

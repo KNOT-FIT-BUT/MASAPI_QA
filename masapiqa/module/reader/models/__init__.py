@@ -1,0 +1,2 @@
+from scalingqa.extractivereader.models.reader import Reader as R2D2ExtractiveReader
+from .fusion_in_reader import T5FusionInDecoderWrapper as T5FusionInDecoder
