@@ -6,5 +6,5 @@ setuptools~=61.2.0
 torch~=1.7.1
 pyserini~=0.17.1
 datasets~=2.4.0
-scalingqa @  git+https://github.com/KNOT-FIT-BUT/scalingQA.git@main#egg=scalingqa
+scalingqa @  git+https://github.com/KNOT-FIT-BUT/scalingQA.git@f3a7d8358677a3914a0a83ce56c1e3a684a32d40#egg=scalingqa
 jsonschema~=4.16.0
