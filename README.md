@@ -38,7 +38,7 @@ It will use the pre-created passage database from Wikipedia to answer this quest
 ### Asking question on given text
 If you have a text that can be used to answer your question, you can use the ask argument in combination with --text argument:
 
-	./run.py ask "When Alan Turing was born?" -t bibliography_of_alen_turing.txt
+	./run.py ask "When Alan Turing was born?" -t bibliography_of_alan_turing.txt
 
 or
 
