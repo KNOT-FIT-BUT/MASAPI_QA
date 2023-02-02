@@ -11,11 +11,14 @@ import multiprocessing
 import os
 import shutil
 import sys
+import time
+from contextlib import nullcontext
 from math import ceil
 from pathlib import Path
 from subprocess import Popen
 from typing import Generator, Tuple, Sequence, Dict, TextIO, Optional
 
+import numpy as np
 from datasets import load_dataset
 from pyserini.eval.evaluate_dpr_retrieval import SimpleTokenizer, Tokenizer
 from pyserini.search import LuceneSearcher, FaissSearcher, DprQueryEncoder
@@ -24,6 +27,7 @@ from windpyutils.args import ExceptionsArgumentParser, ArgumentParserError
 
 from masapiqa.config import MASAPIQAConfig
 from masapiqa.database import Database
+from masapiqa.evaluate import evaluate_predictions
 from masapiqa.responder import OpenQAResponder
 from masapiqa.type.runtime_configuration import RuntimeConfiguration
 from masapiqa.type.startup_configuration import StartupConfiguration
@@ -102,6 +106,15 @@ class ArgumentsManager(object):
         single_query_retrieval_parser.add_argument("query", help="your query", type=str)
         single_query_retrieval_parser.add_argument("-k", help="top k results will be selected", type=int, default=3)
         single_query_retrieval_parser.set_defaults(func=single_query_retrieval)
+
+        evaluate_parser = subparsers.add_parser("evaluate", help="Evaluates system on provided dataset.")
+        evaluate_parser.add_argument("dataset", help="Path to dataset for evaluation. It is expexted that it is a jsonl file with question and answer field", type=str)
+        evaluate_parser.add_argument("-r", "--results", help="path where results should be saved", type=str)
+        evaluate_parser.add_argument("-t", "--text", help="Path to text file or a text itself that should be used for "
+                                                     "answering questions. If omitted the open domain variant is used.", type=str)
+        evaluate_parser.add_argument("-c", "--config", help="Path to configuration that should be used, "
+                                                       "else uses default one.", type=str)
+        evaluate_parser.set_defaults(func=evaluate)
 
         if len(sys.argv) < 2:
             parser.print_help()
@@ -298,12 +311,14 @@ def single_query_retrieval(args: argparse.Namespace):
             print(db[int(res.docid)])
 
 
-def ask(args: argparse.Namespace):
+def prepare_responder(args: argparse.Namespace) -> Tuple[OpenQAResponder, dict]:
     """
-    Runs question answering pipeline for given question.
+    Prepares responder
 
     :param args: user arguments
+    :return: responder and configuration for prediction
     """
+
     config = MASAPIQAConfig(args.config if args.config else DEFAULT_CONFIG_PATH)  # mainly for path conversion
 
     # configs for R2D2 pipeline
@@ -354,9 +369,76 @@ def ask(args: argparse.Namespace):
 
     startup_config = StartupConfiguration(config)
     runtime_config = RuntimeConfiguration(startup_config)
-    responder = OpenQAResponder(runtime_config)
+    return OpenQAResponder(runtime_config), predict_config
+
+
+def ask(args: argparse.Namespace):
+    """
+    Runs question answering pipeline for given question.
+
+    :param args: user arguments
+    """
+    responder, predict_config = prepare_responder(args)
+
     # open domain
     print(responder.predict(args.question, predict_config))
+
+
+def evaluate(args: argparse.Namespace):
+    """
+    Evaluates the model on given dataset.
+
+    :param args: user arguments
+    """
+    responder, predict_config = prepare_responder(args)
+
+    with open(args.dataset, "r") as f, (open(args.results, "w") if args.results else nullcontext()) as res_f:
+        answers = []
+        ext_predictions = []
+        abs_predictions = []
+
+        start_time = time.time()
+        for line in f:
+            record = json.loads(line)
+            answers.append(record["answer"])
+            res = responder.predict(record["question"], predict_config)
+
+            if "extractive_reader" in res:
+                ext_res = res["extractive_reader"]
+                ind = 0
+                if "aggregated_scores" in ext_res:
+                    ind = np.argmax(ext_res["aggregated_scores"])
+                elif "reranked_scores" in ext_res:
+                    ind = np.argmax(ext_res["reranked_scores"])
+
+                ext_predictions.append(ext_res["answers"][ind])
+
+            if "abstractive_reader" in res:
+                abs_predictions.append(res["abstractive_reader"]["answers"][0])
+
+            if args.results:
+                res_record = {
+                    "question": record["question"],
+                    "answer": record["answer"]
+                }
+                if ext_predictions:
+                    res_record["extractive_prediction"] = ext_predictions[-1]
+                if abs_predictions:
+                    res_record["abstractive_prediction"] = abs_predictions[-1]
+
+                print(json.dumps(res_record), file=res_f, flush=True)
+
+        end_time = time.time()
+
+        eval_res = {
+            "prediction_time [s]": end_time - start_time,
+            "prediction_time_per_question [s]": (end_time - start_time) / len(answers),
+            "extractive_em": evaluate_predictions(answers, ext_predictions, False)["accuracy"],
+            "abstractive_em": evaluate_predictions(answers, abs_predictions, False)["accuracy"],
+            "number_of_questions": len(answers)
+        }
+
+        print(json.dumps(eval_res))
 
 
 def main():
