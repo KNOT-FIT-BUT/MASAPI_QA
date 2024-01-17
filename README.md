@@ -118,3 +118,18 @@ Now follows the description of most essential parts of the configuration file:
   * it is using the very same fields but the retriever part
   * As the index is created on the fly, it doesn't need to provide the label of a retriever with created index. Instead, use the model field to define whether you want to use DPR or BM25. You will define it by providing "DPR" or "BM25" strings.
   * There are also two additional fields batch and threads. The batch defines batch size when the DPR is used, and threads define the number of parallel workers when BM25 is used. 
+
+
+## How to run Reranker API
+
+In `api` subdirectory, run (for development purposes):
+
+    uvicorn rerank:app --reload 
+
+The API will be available at http://localhost:8000/docs. See also the config.json file for the configuration of the API.
+
+Running the above in given subdirectory needs to have masapiqa package installed or on PYTHONPATH. You can use the
+
+    export PYTHONPATH=path_to_folder_with_masapiqa
+
+to set the PYTHONPATH.

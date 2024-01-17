@@ -1,0 +1,5 @@
+{
+  "device": "cpu",
+  "cache_dir": null,
+  "checkpoint": "../../experiments/r2d2/reranker_roberta-base_2021-02-25-17-27_athena19_HIT@25_0.8299645997487725_fp16.ckpt"
+}
