@@ -8,12 +8,11 @@ Script for running API.
 :author:     Martin Dočekal
 """
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional, List
+from typing import List
 
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
-
 from pydantic import BaseModel
 
 from masapiqa.checkpoint import Checkpoint
@@ -67,7 +66,7 @@ class RerankRequest(BaseModel):
     titles: List[str]  # List of titles for passages.
 
 
-@app.get("/rerank")
+@app.post("/rerank")
 async def rerank(request: RerankRequest) -> List[float]:
     """
     Reranks passages according to the question.
